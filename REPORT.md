@@ -1,4 +1,4 @@
-# What we built, and how we knew each step worked
+# Idea
 
 The idea is not BM25. The idea is that a shopping copilot should help someone build a
 preference, and that the ranking is how it teaches.
