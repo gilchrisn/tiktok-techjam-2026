@@ -17,3 +17,10 @@ __pycache__/
 .env
 .DS_Store
 *.log
+
+# Kept locally, not part of the submission: video production scaffolding,
+# the organizer's own spec files, and the formal note.
+deliver/
+docs/
+THEOREM.md
+tests/test_film.py

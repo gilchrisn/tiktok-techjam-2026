@@ -64,10 +64,11 @@ Only-accumulate solves 17 sessions, only-ask solves 75, and 48 need both. Asking
 larger lever, which surprised us; memory alone gives the agent nothing new to remember.
 The session-level breakdown is in [`results/miss_tree.json`](results/miss_tree.json).
 
-Asking `other` rather than a named facet matters because of how the simulator filters.
-A named label returns only constraints of that label; `other` matches the whole set. The
-proof is in [`THEOREM.md`](THEOREM.md), and the consequence is that all four constraints
-are on the table by turn three.
+Asking `other` rather than a named facet matters because of how the simulator filters. Its
+condition is `attribute == "other" or classify_constraint(c) == attribute`, so a named label
+returns only constraints of that label while `other` matches the whole set. Since it releases
+at most two per turn and every session holds exactly four, all four are on the table by turn
+three.
 
 ## 3. The list already held the target; the order lost it
 
@@ -104,9 +105,10 @@ raises Hit@10 from 0.875 to 0.915. It gains eight sessions and loses none.
 
 That is the shipped agent, at **0.842183**.
 
-We also tested withholding a badly-ranked early hit to land a better-ranked later one,
-which the first-passage arithmetic in `THEOREM.md` says can pay. After popularity it
-cannot: only three early bad hits remain, worth about 0.003. We did not ship it.
+We also tested withholding a badly-ranked early hit to land a better-ranked later one. The
+scoring arithmetic says that can pay, because rank is locked at the first turn the target
+appears. After popularity it cannot: only three early bad hits remain, worth about 0.003. We
+did not ship it.
 
 ---
 

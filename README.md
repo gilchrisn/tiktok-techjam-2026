@@ -31,8 +31,8 @@ than as a quiz. The evaluator never reads `message`, so this earns nothing on th
 scoreboard. We shipped it because a copilot is for people, and we say plainly in
 [`REPORT.md`](REPORT.md) that the harness cannot measure it.
 
-The reasoning behind each adapter step is in [`REPORT.md`](REPORT.md). The four
-properties of the evaluator it relies on are proved in [`THEOREM.md`](THEOREM.md).
+The reasoning behind each adapter step, and the variants we measured and rejected, is in
+[`REPORT.md`](REPORT.md).
 
 ## Setup
 
@@ -81,11 +81,8 @@ starter/agent.py      the agent
 evaluator/            the official evaluator, unmodified
 tests/                unit tests
 data/                 public sessions; catalog downloaded separately
-docs/                 organizer specification, contract, FAQ
-results/              our measured runs, including the rejected variants
-deliver/              demo page, architecture film, video script
+results/              our measured runs, including the variants we rejected
 REPORT.md             what we built, and the measurement behind each step
-THEOREM.md            proofs of the evaluator properties the adapter uses
 ```
 
 ## Limitations
