@@ -1,112 +1,66 @@
 # Spoken script
 
-Play `kit/deliver/architecture.mp4`. Read this. Do not read the captions.
-
-One idea per sentence. Point at what you are naming.
-Then show one session, then run the evaluator and hold 0.842183.
-
-~385 spoken words. About 2:50 at a measured pace. Shot list in `RECORDING.md`.
+Play `kit/deliver/architecture.mp4`. Do not read the captions.
+Times match the current film (~1:34). Point at the picture for that beat.
 
 ---
 
-## 0:00–0:18 · the task, and the number to beat
+## 0:00–0:10 · task
 
-We are writing a shopping agent.
+A session hides one product in a catalog of 50,000. The agent has ten turns to put that product in a list of ten.
 
-Each session hides one product in a catalog of fifty thousand.
+The kit starter scores 0.107. This agent scores 0.842.
 
-We have ten turns to get that product into a list of ten.
+## 0:10–0:23 · slit
 
-The official starter scores zero point one zero seven. We score zero point eight four two.
+The score uses the list of ids, not the message text.
 
-## 0:18–0:42 · why the split matters
+The simulator only takes the ask. The ranking is not an input. Neither are the titles. The next user sentence depends on the ask.
 
-They score the list. They do not score the sentence we show a person.
+## 0:23–0:31 · two outputs
 
-The simulator is this box.
+`respond()` returns two outputs. The ask and the list go to the scorer. The message is a sentence with product titles.
 
-Only the ask fits through it. The ranking bounces and falls to the scorer.
+The evaluator does not read that message. A shopper would.
 
-The titles never go in.
+## 0:31–0:43 · other
 
-So the next thing the user says depends only on what we asked.
+Each session has four constraints. A named facet returns only that type. `other` returns any of them, two per turn.
 
-## 0:42–1:04 · two policies, one turn
+Two are disclosed, then two more. All four are known by turn three.
 
-That split is our design, so we return two policies every turn.
+## 0:43–0:52 · first-passage
 
-The adapter plays the scored game. The construction policy talks to the person.
+If the hidden product is in the ten, that turn is recorded and the session ends.
 
-A shopper often cannot name what they want. Showing ten concrete items is how they form
-a preference.
+We sort the ten by review count. Most hits are already rank one.
 
-The harness cannot see that. We shipped it anyway, because a copilot is for people.
+## 0:52–1:05 · keep / drop
 
-## 1:04–1:28 · what the adapter does
+These 175 sessions were already solved. Popularity inside the ten kept all of them.
 
-The session has four constraints to disclose.
+Popularity over a window of 400 cut already-solved hits from 102 to 74. We did not use it.
 
-Ask a named facet and you only get the matching slice.
+The opening message contains the category. Using it moved Hit@10 from 0.875 to 0.915.
 
-Ask `other` and you cover the whole set. Two come out — that is the cap per turn.
+## 1:05–1:20 · one session
 
-Two leave. Then the other two.
+Turn 1: browsing, no constraints disclosed. We ask `other` and return ten products.
 
-By turn three we hold every constraint this customer will ever give us.
+Turn 2: two constraints. Turn 3: the remaining two. The target is rank one and the session ends.
 
-## 1:28–1:44 · how they score a hit
+## 1:20–1:34 · score
 
-The scorer keeps ten slots.
+Official evaluator, 200 public sessions, unmodified. TechnicalScore 0.842. No model. Zero tokens.
 
-If the hidden product lands in those ten, that turn is the score, and the session stops.
-
-We sort those ten by review count. Most hits already sit in slot one.
-
-## 1:44–2:08 · what we kept, and what we threw away
-
-These 175 dots are sessions we had already solved.
-
-Popularity inside the ten leaves all of them in place.
-
-Sorting a window of four hundred instead dropped our matched sessions from 102 to 74.
-We measured that, and rejected it.
-
-The first sentence already names the category. Putting that in front took us from
-zero point eight seven five to zero point nine one five.
-
-## 2:08–2:34 · a real session
-
-One full session, turn by turn.
-
-Turn one, the customer is only browsing — no constraints at all.
-
-We ask `other`, and we still show ten items, because showing is free.
-
-Turn two, two constraints arrive. Turn three, the last two.
-
-The hidden product enters the ten at rank one, and the session stops.
-
-## 2:34–2:50 · the number
-
-Unmodified official evaluator, two hundred public sessions.
-
-Zero point eight four two. Python standard library only. Zero tokens. Zero dollars.
-
-The titles sit outside that number. They are not scored, and we shipped them anyway.
+The message is not in that score.
 
 ---
 
-If you run long, cut "We sort those ten by review count" and shorten the session shot to
-turns one and three. Do not cut the task, the box, the two policies, or the 0.107 anchor.
+If you run long, drop the review-count sentence.
 
-## If a judge asks afterwards
+If a judge asks later:
 
-- **"Why not MiniLM / a neural reranker?"** We did not build one, so we claim no ablation.
-  A peer's MiniLM scored 0.64. Our reason for not spending the dependency: `"other"`
-  already dumps all four constraints by turn 3, and our remaining misses are generic
-  listing text, not a missing neural rerank.
-- **"Is `other` an exploit?"** Dominance, not an exploit. Specific labels return a subset
-  of the same batch-of-two filter. Proved in `THEOREM.md`.
-- **"Is popularity gaming the metric?"** Possibly a leave-last-out artifact — we say so in
-  Limitations. Cañamares & Castells (SIGIR 2018) analyse exactly when popularity is a real
-  signal versus an experimentation bias.
+- MiniLM: we did not build one, so we claim no ablation. A peer MiniLM scored 0.64. `other` already returns all four constraints by turn 3. Remaining misses are generic listing text.
+- Is `other` an exploit: no. A specific label is a subset of the same two-per-turn filter. `THEOREM.md`.
+- Popularity: may be a leave-last-out artifact. Limitations says so. Cañamares and Castells, SIGIR 2018.
