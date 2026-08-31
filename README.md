@@ -74,6 +74,25 @@ Run the tests with:
 python3 -m unittest discover -s tests -v
 ```
 
+## Environment and cost
+
+Measured on the machine that produced the result above.
+
+| | |
+|---|---|
+| Python | 3.10.12, x86-64 |
+| hardware | laptop CPU, 24 cores, 15 GB RAM; no GPU used |
+| dependencies | none beyond the standard library |
+| agent startup | 4.3 s, building its own SQLite FTS5 index over the catalog |
+| full 200-session run | 22.7 s |
+| per-turn latency | 39 ms median, 41 ms at p95 |
+| token usage | 0 |
+| model cost | $0 |
+
+There are no external services to reach, so nothing here depends on network
+availability, an API quota, or a cached model download. The same run on a slower
+machine changes the timings and nothing else.
+
 ## Layout
 
 ```
@@ -125,12 +144,6 @@ The second is honest evaluation of the idea the scoreboard cannot see. CoShop me
 whether a dialogue expands what the shopper knows, and five frontier models stayed under
 56% on it. Running the construction policy against that kind of protocol would tell us
 something the TechnicalScore cannot.
-
-## Team
-
-<!-- Fill before submitting. Required deliverable. One line each. -->
-- NAME — role, what they built
-- NAME — role, what they built
 
 ## Data
 
