@@ -1,113 +1,141 @@
-# TechJam Conversational E-Commerce Search Challenge
+# Opoyo — TechJam 2026, Track 4
 
-Build an AI shopping agent that asks useful follow-up questions and recommends the customer's hidden target product within at most 10 turns.
+A shopping agent for the Conversational E-Commerce Search Challenge.
 
-## What You Receive
+On the 200 public sessions, scored by the unmodified official evaluator:
 
-- A frozen catalog of 50,000 products from the `Clothing_Shoes_and_Jewelry` category of Amazon Reviews 2023.
-- 200 labeled public sessions for local development.
-- A weak BM25 starter agent and deterministic local evaluator.
-- The Agent API contract and scoring rules.
+| | Hit@10 | MRR | MTTC | TechnicalScore |
+|---|---:|---:|---:|---:|
+| official starter | 0.125 | 0.068034 | 9.81 | 0.10671 |
+| **this agent** | **0.915** | **0.750276** | **3.02** | **0.842183** |
 
-The organizer keeps 800 additional sessions unreleased until the Devpost submission deadline. After the deadline, the final evaluation package will be released and teams will run the unmodified official evaluator in their own environments using their frozen submitted commit.
+No API keys, no model downloads, no network at scoring time. The agent imports
+`json`, `re`, `sqlite3` and `pathlib`, and nothing else. A full run over 200 sessions
+takes about 25 seconds on a laptop CPU, and reports zero tokens and zero dollars.
 
-See [`docs/final_evaluation_faq.md`](docs/final_evaluation_faq.md) for the final evaluation, network, credentials, hardware, data, and scoring policy.
+## What it does
 
-## Task
+A shopper is thinking of one product out of fifty thousand and will not say which.
+Each turn, the agent shows ten products and asks one question. The session ends when
+the hidden product appears in those ten, or after ten turns.
 
-For each session, your agent receives an anonymized preference profile and a short customer message. Raw user IDs, review text, timestamps, and purchase history are never disclosed. On every turn the agent may:
+The agent returns two things every turn, and they answer to different audiences.
 
-- ask a natural clarification question in `message` and identify one requested field in `ask_attribute`;
-- return a ranked list of up to 10 catalog `parent_asin` values;
-- do both in the same response.
+The **eval adapter** plays the scored game. It accumulates everything the shopper has
+said, queries BM25 over the catalog, pulls the named category to the front, cuts to ten,
+and reorders those ten by review count. It always sets `ask_attribute` to `other`.
 
-The session ends when the target product appears in the scored Top 10 or after turn 10. Sessions cover Buying, Browsing, Intent Override, and Boundary behavior.
+The **construction policy** lives in `message`. A shopper who cannot name what they want
+forms a preference by seeing options, so the agent narrates the slate as examples rather
+than as a quiz. The evaluator never reads `message`, so this earns nothing on the
+scoreboard. We shipped it because a copilot is for people, and we say plainly in
+[`REPORT.md`](REPORT.md) that the harness cannot measure it.
 
-## Download the Catalog
+The reasoning behind each adapter step is in [`REPORT.md`](REPORT.md). The four
+properties of the evaluator it relies on are proved in [`THEOREM.md`](THEOREM.md).
 
-Download `catalog.jsonl.gz` from the GitHub Release attached to this repository, then run:
+## Setup
+
+Python 3.10 or later. There are no dependencies to install and no environment variables
+to set.
+
+The catalog is not in this repository; it is 58 MB and belongs to the organizer. Download
+it from the participant kit release and unpack it into `data/`:
 
 ```bash
-gzip -dk catalog.jsonl.gz
-mv catalog.jsonl data/catalog.jsonl
+curl -L -o data/catalog.jsonl.gz \
+  https://github.com/TechJam2026/techjam-conversational-search/releases/download/participant-kit/catalog.jsonl.gz
+cd data && gzip -dk catalog.jsonl.gz && cd ..
 ```
 
-Verify the downloaded file using the published `SHA256SUMS` file.
+Expected SHA256 of the archive:
 
-## Run the Starter
+```
+07fd142631fd6b03e2b4d09988c3eb7d53720e9d57010c79db48eeaada50a8f8
+```
 
-Python 3.10 or later is recommended. The starter uses only the Python standard library.
+## Reproduce the result
 
 ```bash
 python3 -m evaluator.local_evaluator
 ```
 
-Edit `starter/agent.py` to implement your system. Do not edit the evaluator or public labels when reporting your local score.
-The command writes per-session results and aggregate metrics to `results.json`.
+That command loads `starter/agent.py`, runs all 200 public sessions, prints the metrics,
+and writes `results.json`. The number in the table above is
+`recommended_technical_score`. A copy of our run is checked in at
+[`results/public200.json`](results/public200.json).
 
-The included weak BM25 starter scores Hit Rate@10 `0.125`, MRR `0.068034`, and
-MTTC `9.81` on the released public set. See `docs/baseline_results.json`.
+The evaluator in this repository is the organizer's, unmodified. Stripping carriage
+returns, it hashes to `0cbd7aa78ade1d2b3b7d11c51e73f63f`, matching upstream.
 
-## Agent Interface
+Run the tests with:
 
-```python
-class Agent:
-    def reset(self, session_id: str, user_profile: dict) -> None:
-        ...
-
-    def respond(self, session_id: str, user_message: str, turn: int, top_k: int) -> dict:
-        return {
-            "message": "Do you have a material preference?",
-            "ask_attribute": "material",
-            "recommendations": [
-                {"parent_asin": "B000..."},
-                {"parent_asin": "B001..."}
-            ],
-            "usage": {"prompt_tokens": 120, "completion_tokens": 30}
-        }
+```bash
+python3 -m unittest discover -s tests -v
 ```
 
-`ask_attribute` is one of `category`, `material`, `color`, `size`, `style`, `brand`, `budget`, `feature`, `use_case`, `other`, or `null`. See `docs/agent_api_contract.json`.
+## Layout
 
-## Technical Metrics
-
-- **Hit Rate@10:** fraction of sessions that find the target within 10 turns.
-- **MRR:** mean reciprocal rank of the target; a miss contributes zero.
-- **MTTC:** mean first-hit turn; a miss is assigned turn 11.
-- **Reported token usage:** prompt and completion tokens returned by the team's model client.
-
-```text
-TechnicalScore = 0.50 × HitRate@10 + 0.30 × MRR + 0.20 × Efficiency
-Efficiency = clip((11 - MTTC) / 10, 0, 1)
+```
+starter/agent.py      the agent
+evaluator/            the official evaluator, unmodified
+tests/                unit tests
+data/                 public sessions; catalog downloaded separately
+docs/                 organizer specification, contract, FAQ
+results/              our measured runs, including the rejected variants
+deliver/              demo page, architecture film, video script
+REPORT.md             what we built, and the measurement behind each step
+THEOREM.md            proofs of the evaluator properties the adapter uses
 ```
 
-`TechnicalScore` is an objective input to the `Technical Execution` assessment. It is not a separate judging criterion and does not represent the entire `Technical Execution` score.
+## Limitations
 
-Only exact `parent_asin` equality produces a hit. Core metrics are also reported by scenario.
+**Popularity may be measuring the data, not the shopper.** Reordering the scored ten by
+review count is worth 0.053 of the final score. Amazon targets sampled leave-last-out
+skew popular, so a popularity prior can look like skill when it is an artifact of how the
+evaluation set was built. Cañamares and Castells analysed exactly this in *Should I Follow
+the Crowd?* (SIGIR 2018). We report the gain and label its likely cause rather than
+claiming a modelling insight.
 
-## Model Choice and Cost
+**Seventeen sessions still miss.** In those, the listing text the shopper quotes is not
+unique to one product, or BM25 never placed the target in the ten even given an oracle
+query. A belt described only as leather, 100% leather, imported, buckle closure matches
+thousands of belts, and no amount of ranking recovers it from what the shopper says.
 
-Teams may use any legally accessible LLM API or local model. Teams manage their own credentials and must never commit API keys. Model choice, estimated cost, token usage, and latency must be disclosed. Token usage is a feasibility metric, not part of the core technical score. The organizer does not provide or reimburse model API credits; teams are responsible for any costs incurred through optional external services.
+**We did not build a neural reranker, so we claim no ablation against one.** A peer's
+MiniLM cross-encoder scored 0.64 on this task. Our reason for not spending the dependency
+is that asking `other` already extracts all four constraints by turn three, and our
+remaining misses are generic listing text rather than a ranking failure a cross-encoder
+would fix.
 
-## Files
+**The construction policy is untestable here by design.** `customer_reply` takes
+`ask_attribute` and never receives the ranking, so nothing the agent shows can change what
+the shopper wants. Measuring it needs a target-free protocol of the kind Kim et al.
+propose, which this challenge does not use.
 
-```text
-data/public_set.jsonl             200 labeled development sessions
-docs/competition_specification.md participant rules and evaluation protocol
-docs/final_evaluation_faq.md      final evaluation and judging clarifications
-docs/agent_api_contract.json      machine-readable Agent contract
-docs/evaluation_config.json       scoring configuration
-docs/baseline_results.json        reproducible weak-starter reference score
-starter/agent.py                  editable weak starter
-evaluator/local_evaluator.py      public-set simulator and scorer
-```
+**We do not claim 0.842 on the private 800.** That package is released after the deadline.
 
-## Judging and Submission Policy
+## What we would do next
 
-- Participant submission requirements: `docs/submission_rules.md`
-- Final evaluation FAQ: `docs/final_evaluation_faq.md`
+Two directions, in order of expected value.
 
-## Data Source
+The first is the ranking of the ten, which is where the remaining headroom sits. Hit rate
+is 0.915 and MRR is 0.750, so lifting MRR toward 0.9 is worth roughly twice what lifting
+recall is worth. A cross-encoder over ten candidates is cheap enough to test properly, and
+we would run it as an ablation rather than adopt it on reputation.
 
-The catalog and sessions are derived from Amazon Reviews 2023 by McAuley Lab, UCSD. See `DATA_ATTRIBUTION.md` before using or redistributing the data.
-Sessions are sampled deterministically from the official Clothing 5-core leave-last-out split and joined to the frozen catalog.
+The second is honest evaluation of the idea the scoreboard cannot see. CoShop measures
+whether a dialogue expands what the shopper knows, and five frontier models stayed under
+56% on it. Running the construction policy against that kind of protocol would tell us
+something the TechnicalScore cannot.
+
+## Team
+
+<!-- Fill before submitting. Required deliverable. One line each. -->
+- NAME — role, what they built
+- NAME — role, what they built
+
+## Data
+
+Catalog and sessions come from the frozen TechJam participant kit, derived from Amazon
+Reviews 2023 (`Clothing_Shoes_and_Jewelry`). See [`DATA_ATTRIBUTION.md`](DATA_ATTRIBUTION.md).

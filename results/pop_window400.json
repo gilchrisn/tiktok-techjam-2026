@@ -1,0 +1,81 @@
+{
+  "decision": "reject",
+  "reason": "fails lines-meet: already-solved hit_ok membership drops",
+  "property": "reorder BM25-400 by rating_number then cut to 10",
+  "v3": {
+    "score": 0.750401,
+    "hit": 0.875,
+    "mrr": 0.540002
+  },
+  "pop_window400": {
+    "score": 0.590221,
+    "hit": 0.715,
+    "mrr": 0.331069
+  },
+  "hit_ok_lost": 28,
+  "by_cause": {
+    "hit_ok": {
+      "n": 102,
+      "hit_v3": 102,
+      "hit_window": 74,
+      "mrr_v3": 0.769608,
+      "mrr_window": 0.348599
+    },
+    "hit_low_rank": {
+      "n": 42,
+      "hit_v3": 42,
+      "hit_window": 30,
+      "mrr_v3": 0.144955,
+      "mrr_window": 0.30754
+    },
+    "hit_after_lock": {
+      "n": 26,
+      "hit_v3": 26,
+      "hit_window": 20,
+      "mrr_v3": 0.765858,
+      "mrr_window": 0.323184
+    },
+    "generic_pool": {
+      "n": 11,
+      "hit_v3": 0,
+      "hit_window": 8,
+      "mrr_v3": 0.0,
+      "mrr_window": 0.418182
+    },
+    "outranked": {
+      "n": 7,
+      "hit_v3": 0,
+      "hit_window": 4,
+      "mrr_v3": 0.0,
+      "mrr_window": 0.47619
+    },
+    "hit_late": {
+      "n": 5,
+      "hit_v3": 5,
+      "hit_window": 2,
+      "mrr_v3": 0.7,
+      "mrr_window": 0.062222
+    },
+    "miss_after_lock": {
+      "n": 4,
+      "hit_v3": 0,
+      "hit_window": 3,
+      "mrr_v3": 0.0,
+      "mrr_window": 0.116964
+    },
+    "unattributed": {
+      "n": 2,
+      "hit_v3": 0,
+      "hit_window": 2,
+      "mrr_v3": 0.0,
+      "mrr_window": 0.3125
+    },
+    "not_in_bm25_1000_oracle": {
+      "n": 1,
+      "hit_v3": 0,
+      "hit_window": 0,
+      "mrr_v3": 0.0,
+      "mrr_window": 0.0
+    }
+  }
+}

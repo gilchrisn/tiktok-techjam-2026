@@ -32,13 +32,39 @@ def _terms(text: str) -> list[str]:
     ]
 
 
+CAT_RE = re.compile(r"I'm looking for (.+?)(?:,|\.)", re.I)
+_EXCLUDED_CAT = {"clothing", "clothing shoes & jewelry", "clothing, shoes & jewelry"}
+
+
+def _coarse(values: object) -> str:
+    cleaned: list[str] = []
+    for value in values or []:
+        for part in str(value).split(","):
+            part = part.strip()
+            if part and part.lower() not in _EXCLUDED_CAT:
+                cleaned.append(part)
+    return " ".join(cleaned[-2:]).lower()
+
+
 class Agent:
-    """Editable weak baseline: stateless BM25 retrieval with no LLM dependency."""
+    """Two policies, one response.
+
+    Construction policy (the idea): the slate is how a shopper *forms* a
+    preference — examples, not a hidden-target hunt. It writes `message`.
+    The simulator never reads `message` or the ranking.
+
+    Eval adapter: accumulate text, ask `other`, BM25, bump the opening-template
+    category to the front of the 400, cut to 10, reorder that 10 by review count.
+    Buying vs browsing is inferred from the opening line, not `scenario_type`.
+    """
 
     def __init__(self, catalog_path: str | Path = "data/catalog.jsonl") -> None:
         self.catalog_path = Path(catalog_path)
         self.connection = sqlite3.connect(":memory:")
-        self._sessions: set[str] = set()
+        self.rating_number: dict[str, int] = {}
+        self.titles: dict[str, str] = {}
+        self.cat_of: dict[str, str] = {}
+        self._state: dict[str, dict] = {}
         self._build_index()
 
     def _build_index(self) -> None:
@@ -52,9 +78,13 @@ class Agent:
         with self.catalog_path.open(encoding="utf-8") as handle:
             for line in handle:
                 product = json.loads(line)
+                pid = str(product["parent_asin"])
+                self.rating_number[pid] = int(product.get("rating_number") or 0)
+                self.titles[pid] = str(product.get("title") or pid)[:80]
+                self.cat_of[pid] = _coarse(product.get("categories"))
                 batch.append(
                     (
-                        str(product["parent_asin"]),
+                        pid,
                         _text(product.get("title")),
                         _text(product.get("categories")),
                         _text(product.get("features")),
@@ -71,8 +101,12 @@ class Agent:
         self.connection.commit()
 
     def reset(self, session_id: str, user_profile: dict) -> None:
-        # The profile is anonymized and may be used for personalization.
-        self._sessions.add(session_id)
+        self._state[session_id] = {
+            "msgs": [],
+            "profile": user_profile,
+            "exploring": None,
+            "cat": None,
+        }
 
     def respond(
         self,
@@ -81,22 +115,55 @@ class Agent:
         turn: int,
         top_k: int,
     ) -> dict:
-        if session_id not in self._sessions:
+        state = self._state.get(session_id)
+        if state is None:
             raise RuntimeError("reset must be called before respond")
-        unique_terms = list(dict.fromkeys(_terms(user_message)))[:40]
-        expression = " OR ".join(f'"{term}"' for term in unique_terms)
-        if not expression:
-            recommendations: list[dict] = []
+        state["msgs"].append(user_message)
+        if state["exploring"] is None:
+            state["exploring"] = "still exploring" in user_message.lower()
+        if state["cat"] is None:
+            match = CAT_RE.search(user_message)
+            if match:
+                state["cat"] = match.group(1).strip().lower()
+
+        query = " ".join(state["msgs"])
+        terms = list(dict.fromkeys(_terms(query)))[:40]
+        expression = " OR ".join(f'"{term}"' for term in terms)
+        ranked: list[str] = []
+        if expression:
+            try:
+                rows = self.connection.execute(
+                    "SELECT parent_asin FROM products WHERE products MATCH ? "
+                    "ORDER BY bm25(products, 0.0, 6.0, 4.0, 2.5, 2.5, 1.5, 1.0) LIMIT ?",
+                    (expression, 400),
+                ).fetchall()
+                ranked = [str(row[0]) for row in rows]
+            except sqlite3.OperationalError:
+                ranked = []
+        want = state["cat"]
+        if want:
+            in_cat = [pid for pid in ranked if want in self.cat_of.get(pid, "")]
+            out_cat = [pid for pid in ranked if want not in self.cat_of.get(pid, "")]
+            ranked = in_cat + out_cat
+        ranked = ranked[:top_k]
+        ranked = sorted(ranked, key=lambda pid: self.rating_number.get(pid, 0), reverse=True)
+
+        examples = "; ".join(self.titles[pid] for pid in ranked[:3] if pid in self.titles)
+        if state["exploring"]:
+            message = (
+                "You are browsing, so I am not extracting a hidden spec — I am showing "
+                "concrete options so you can form one. Closer to these, or different: "
+                f"{examples or 'the list below'}?"
+            )
         else:
-            rows = self.connection.execute(
-                "SELECT parent_asin FROM products WHERE products MATCH ? "
-                "ORDER BY bm25(products, 0.0, 6.0, 4.0, 2.5, 2.5, 1.5, 1.0) LIMIT ?",
-                (expression, top_k),
-            ).fetchall()
-            recommendations = [{"parent_asin": str(row[0])} for row in rows]
+            message = (
+                "You named a hard constraint, so I locked it and I am using the list as "
+                "examples of what that constraint actually looks like, not as a quiz. "
+                f"{examples or 'See the list.'} Anything that would rule these out?"
+            )
         return {
-            "message": "Here are the closest matches I found.",
-            "ask_attribute": None,
-            "recommendations": recommendations,
+            "message": message,
+            "ask_attribute": "other",
+            "recommendations": [{"parent_asin": pid} for pid in ranked],
             "usage": {"prompt_tokens": 0, "completion_tokens": 0},
         }

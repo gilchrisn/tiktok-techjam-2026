@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Architecture film</title>
+  <style>
+    html, body { margin: 0; height: 100%; background: #14171B; overflow: hidden; }
+    video { width: 100vw; height: 100vh; object-fit: contain; background: #14171B; }
+  </style>
+</head>
+<body>
+  <video id="v" autoplay controls playsinline>
+    <source src="architecture.mp4" type="video/mp4" />
+    <source src="architecture_preview.mp4" type="video/mp4" />
+  </video>
+  <script>
+    const v = document.getElementById("v");
+    document.addEventListener("keydown", (e) => {
+      if (e.code === "Space") { e.preventDefault(); v.paused ? v.play() : v.pause(); }
+      if (e.key === "r" || e.key === "R") { v.currentTime = 0; v.play(); }
+    });
+  </script>
+</body>
+</html>
