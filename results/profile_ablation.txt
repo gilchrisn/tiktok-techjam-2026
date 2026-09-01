@@ -1,0 +1,5 @@
+variant                               score     hit     MRR    MTTC
+--------------------------------------------------------------------
+shipped (profile unused)             0.8422   0.915   0.750    3.02
++ preference_tags in query           0.8361   0.910   0.737    3.00
++ profile summary in query           0.8316   0.905   0.734    3.06

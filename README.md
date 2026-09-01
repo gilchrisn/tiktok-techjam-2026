@@ -147,6 +147,10 @@ whether a dialogue expands what the shopper knows, and five frontier models stay
 56% on it. Running the construction policy against that kind of protocol would tell us
 something the TechnicalScore cannot.
 
+Personalization we tested and closed. Feeding the session's `user_profile` into the query
+scores 0.8361 with its preference tags and 0.8316 with its summary, against 0.842183 when
+the profile is left unread. See [`REPORT.md`](REPORT.md) section 7.
+
 ## Data
 
 Catalog and sessions come from the frozen TechJam participant kit, derived from Amazon
