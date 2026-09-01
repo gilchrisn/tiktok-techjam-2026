@@ -106,6 +106,22 @@ We also tested withholding a badly ranked early hit to land a better ranked late
 scoring arithmetic allows it, because rank is locked at first appearance. After popularity
 it no longer pays: three early bad hits remain, worth about 0.003, so we did not ship it.
 
+## 6. The pivot is rhetorical, so we do not erase
+
+Thirty sessions have the shopper change their mind: *"Actually, ignore my earlier
+preference. What I need is: X."* The obvious response is to drop what they said before, and
+here that is wrong.
+
+The hidden target never moves. `behavior_for()` draws `old_value` from
+`soft_preferences[-1]` and `new_value` from `hard_constraints[0]`, both out of the same
+intent card for the same product, so what the shopper retracts stays true of the answer. The
+pivot changes which fact they emphasise, not which item they want.
+
+Erasing on the pivot costs half the scenario. Keeping everything scores 0.900 hit and 0.8089
+across those thirty sessions, while clearing the accumulated messages on that phrase drops
+them to 0.500 and 0.4379. The agent has no override branch, and that is the measurement
+behind its absence.
+
 ---
 
 ## Result
