@@ -1,0 +1,15 @@
+TEST 1 — does a tag appear in its own target more than in a random product?
+  tag present in own target : 293/666 = 0.440
+  tag present in random prod: 167/666 = 0.251
+  lift: 1.75x
+  per tag (n, own, random):
+    fit              n=163  own=0.571  random=0.337
+    material         n=154  own=0.318  random=0.240
+    comfort          n=144  own=0.653  random=0.340
+    style            n=101  own=0.446  random=0.208
+    durability       n=47   own=0.085  random=0.064
+    performance      n=26   own=0.192  random=0.077
+
+TEST 2 — tags as a rerank tiebreak only (no query dilution possible)
+  shipped                    score 0.8422  hit 0.915  MRR 0.750
+  + tag rerank of the ten    score 0.7574  hit 0.915  MRR 0.468

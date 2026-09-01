@@ -122,21 +122,33 @@ across those thirty sessions, while clearing the accumulated messages on that ph
 them to 0.500 and 0.4379. The agent has no override branch, and that is the measurement
 behind its absence.
 
-## 7. The user profile carries no usable signal
+## 7. The user profile has signal we could not convert
 
-Every session hands `reset()` an anonymized `user_profile` with preference tags, a purchase
-frequency, a rating style and a summary sentence. Using it costs score.
+Every session hands `reset()` an anonymized `user_profile` carrying preference tags, a
+purchase frequency, a rating style and a summary sentence. The tags do correlate with the
+target. Across the 666 tag instances in the public set, a tag appears in its own target's
+listing text 44.0% of the time and in a randomly drawn product 25.1% of the time, a lift of
+1.75. Per tag the pattern holds: `comfort` appears in 65.3% of its own targets against 34.0%
+of random products, `fit` in 57.1% against 33.7%, `style` in 44.6% against 20.8%.
+
+Three ways of spending that signal all cost score.
 
 | variant | TechnicalScore | Hit@10 | MRR |
 |---|---:|---:|---:|
 | shipped, profile unread | **0.842183** | 0.915 | 0.750276 |
 | preference tags appended to the query | 0.836100 | 0.910 | 0.737 |
 | profile summary appended to the query | 0.831600 | 0.905 | 0.734 |
+| tags used to rerank the scored ten | 0.757400 | 0.915 | 0.468 |
 
-Nine distinct tags cover all 200 sessions, and `fit`, `material` and `comfort` appear in 163,
-154 and 144 of them. Terms that common broaden a BM25 query without narrowing the candidate
-set, so they displace the constraints that do discriminate. The agent reads the profile and
-ignores it.
+The first two dilute retrieval. Nine distinct tags cover all 200 sessions and the common ones
+appear in most of them, so adding them to a BM25 query contributes low-IDF terms that broaden
+the match without narrowing it. The third leaves retrieval untouched and fails differently:
+reordering ten items cannot change whether the target is among them, so hit rate holds at
+0.915 while MRR falls from 0.750 to 0.468, because ranking on tag count displaces the
+popularity ordering that section 4 showed was worth 0.053.
+
+A 1.75 lift is real and too weak to beat what it would replace. We read the profile and do
+not use it, and this is the measurement behind that rather than an assumption.
 
 ---
 

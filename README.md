@@ -147,9 +147,11 @@ whether a dialogue expands what the shopper knows, and five frontier models stay
 56% on it. Running the construction policy against that kind of protocol would tell us
 something the TechnicalScore cannot.
 
-Personalization we tested and closed. Feeding the session's `user_profile` into the query
-scores 0.8361 with its preference tags and 0.8316 with its summary, against 0.842183 when
-the profile is left unread. See [`REPORT.md`](REPORT.md) section 7.
+Personalization we investigated and closed. The session `user_profile` does correlate with
+the target — its tags appear in the target's text 44.0% of the time against 25.1% for a
+random product — but no way of spending that signal beat leaving it alone: 0.8361 with the
+tags in the query, 0.8316 with the summary, 0.7574 reranking the scored ten, against
+0.842183 unread. See [`REPORT.md`](REPORT.md) section 7.
 
 ## Data
 
