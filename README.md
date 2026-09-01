@@ -19,20 +19,22 @@ A shopper is thinking of one product out of fifty thousand and will not say whic
 Each turn, the agent shows ten products and asks one question. The session ends when
 the hidden product appears in those ten, or after ten turns.
 
-The agent returns two things every turn, and they answer to different audiences.
+The agent returns two things every turn, written for different readers.
 
-The **eval adapter** plays the scored game. It accumulates everything the shopper has
-said, queries BM25 over the catalog, pulls the named category to the front, cuts to ten,
-and reorders those ten by review count. It always sets `ask_attribute` to `other`.
+The **eval adapter** is what the scoring sees. It accumulates everything the shopper has
+said, queries BM25 over the catalog, moves the named category to the front, cuts to ten,
+and reorders those ten by review count. It sets `ask_attribute` to `other` on every turn,
+because a named facet returns only constraints of that class while `other` returns any of
+them.
 
-The **construction policy** lives in `message`. A shopper who cannot name what they want
-forms a preference by seeing options, so the agent narrates the slate as examples rather
-than as a quiz. The evaluator never reads `message`, so this earns nothing on the
-scoreboard. We shipped it because a copilot is for people, and we say plainly in
-[`REPORT.md`](REPORT.md) that the harness cannot measure it.
+The **construction policy** is the `message` field. A shopper who cannot name the product
+they want can still react to one, so the agent presents the ten as examples rather than as
+a quiz. The evaluator never reads `message`, so this scores nothing. We built it because
+the scored task and the useful task are not the same task, and
+[`REPORT.md`](REPORT.md) sets out the evidence that they differ.
 
-The reasoning behind each adapter step, and the variants we measured and rejected, is in
-[`REPORT.md`](REPORT.md).
+That report also gives the measurement behind each adapter step, including the variants we
+rejected.
 
 ## Setup
 

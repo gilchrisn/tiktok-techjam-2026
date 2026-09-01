@@ -1,58 +1,53 @@
-# Idea
+# Method
 
-The idea is not BM25. The idea is that a shopping copilot should help someone build a
-preference, and that the ranking is how it teaches.
+## The idea
 
-A real shopper often cannot name what they want. Showing them ten concrete items is an act
-of elicitation — *closer to this, or not?* — rather than a probe for a frozen product ID.
-Saracay, Schmidt and Guestrin argue exactly this in
-[Beyond expert users](https://arxiv.org/abs/2606.30863) (Stanford, June 2026), and they
-built CoShop to measure it. Five frontier models stayed under 56% accuracy over five turns
-on that benchmark, and the failure was not in finding items but in how little the dialogue
-expanded what the shopper knew.
+A shopper often cannot name the product they want. They can react to one, though, so
+showing ten concrete items narrows the search faster than asking them to describe
+something they have not yet pictured.
 
-This harness cannot measure any of that. The function that generates the shopper's next
-line is `customer_reply(sample, ask_attribute, disclosed, boundary_used)`, and the
-ranking is not one of its arguments. The target is fixed before turn one and nothing the
-agent shows can move it. Kim et al. name this failure mode in
+Saracay, Schmidt and Guestrin make this argument in
+[Beyond expert users](https://arxiv.org/abs/2606.30863) (Stanford, June 2026) and built
+CoShop to test it. On that benchmark five frontier models stayed under 56% accuracy across
+five turns. They failed not at finding items but at expanding what the shopper knew.
+
+This evaluator cannot measure that. The function that writes the shopper's next line is
+`customer_reply(sample, ask_attribute, disclosed, boundary_used)`, and the ranking is not
+one of its arguments. The target is fixed before turn one, so nothing the agent shows can
+change it. Kim et al. name this failure mode in
 [Stop Playing the Guessing Game!](https://arxiv.org/abs/2411.16160) (EMNLP 2025 Findings):
 a simulator with a predefined target turns recommendation into guessing. τ-Rec
-([RecSys 2026](https://arxiv.org/abs/2606.10156)) uses the same reveal-tagged channel we
-have. ConvApparel ([EACL 2026](https://arxiv.org/abs/2602.16938)) measured the realism gap
-across simulators in this exact apparel domain, and fitting one does not produce a better
-shopper.
+([RecSys 2026](https://arxiv.org/abs/2606.10156)) reveals constraints through the same kind
+of channel. ConvApparel ([EACL 2026](https://arxiv.org/abs/2602.16938)) measured how far
+these simulators sit from real shoppers, in this same apparel domain.
 
-So the agent returns two policies in a single response.
+Because the scored task and the useful task differ, the agent answers both in one response.
 
 | | Construction policy | Eval adapter |
 |---|---|---|
-| lives in | `message`, and the act of showing a slate | `ask_attribute`, accumulated BM25, the reordered ten |
-| the shopper | would use the list to form a preference | is a state machine and ignores it |
+| lives in | `message`, and the slate itself | `ask_attribute`, accumulated BM25, the reordered ten |
+| the shopper | would use the list to narrow down | is a state machine and ignores it |
 | the rubric | Innovation and Impact | an input to Technical Execution |
 
-We do not claim the slate steers the hidden target. That would be false of the code, and
-the function signature is how we know. We claim the opposite, and we built the
-construction policy anyway.
-
-The rest of this report is the adapter: four steps, each with the measurement that
-justified it.
+We do not claim the slate steers the hidden target. The function signature shows it cannot.
+We built the construction policy regardless, and everything below is the adapter.
 
 ---
 
-## 1. Where the guessing game breaks the starter
+## 1. Why the starter scores 0.107
 
-The official starter agent scores 0.10671, and two lines of `starter/agent.py` explain
-why. It queries only the current turn's message, so it forgets everything the shopper
-said. It hardcodes `ask_attribute` to `None`, so the shopper answers *"ask me about one
-specific attribute"* and discloses nothing.
+Two lines of `starter/agent.py` account for it. The agent queries only the current turn's
+message, so it forgets what the shopper said earlier. It also hardcodes `ask_attribute` to
+`None`, which makes the shopper reply *"ask me about one specific attribute"* and disclose
+nothing.
 
-An agent that never asks therefore never learns. Browsing sessions show the cost most
-plainly: their opening line names a category and gives no constraints at all, and the
-starter hits 0.025 of them. Boundary sessions it never solves.
+An agent that never asks never learns. Browsing sessions show that most clearly, because
+their opening line names a category and supplies no constraints: the starter solves 0.025
+of them, and no boundary session at all.
 
-## 2. The two failures are independent
+## 2. Memory and asking are independent failures
 
-Fixing either flaw alone leaves most of the gap open.
+Fixing one without the other leaves most of the gap open.
 
 | arm | the single change | Hit@10 | TechnicalScore |
 |---|---|---:|---:|
@@ -60,59 +55,60 @@ Fixing either flaw alone leaves most of the gap open.
 | v2 | ask `other`, but stay stateless | 0.560 | 0.496973 |
 | v3 | both | 0.875 | 0.750401 |
 
-Only-accumulate solves 17 sessions, only-ask solves 75, and 48 need both. Asking is the
-larger lever, which surprised us; memory alone gives the agent nothing new to remember.
-The session-level breakdown is in [`results/miss_tree.json`](results/miss_tree.json).
+Accumulating alone solves 17 sessions and asking alone solves 75, while 48 need both.
+Asking is the larger lever, which we did not expect: memory has nothing to store until a
+question produces an answer. Per-session detail is in
+[`results/miss_tree.json`](results/miss_tree.json).
 
-Asking `other` rather than a named facet matters because of how the simulator filters. Its
-condition is `attribute == "other" or classify_constraint(c) == attribute`, so a named label
-returns only constraints of that label while `other` matches the whole set. Since it releases
-at most two per turn and every session holds exactly four, all four are on the table by turn
-three.
+Asking `other` beats naming a facet because of how the simulator filters. Its condition is
+`attribute == "other" or classify_constraint(c) == attribute`, so a named label returns
+only constraints of that class while `other` matches all of them. The simulator releases at
+most two per turn and every session holds exactly four, which puts all four on the table by
+turn three.
 
-## 3. The list already held the target; the order lost it
+## 3. Retrieval found the target; the ordering buried it
 
-After v3, 175 of 200 sessions hit. Of those hits, 42 landed at rank 5 through 10.
+After v3, 175 of 200 sessions hit, and 42 of those hits landed at rank 5 through 10.
 
-That number reframed the problem. The retrieval had found the product and the ordering
-had buried it — and because the evaluator locks the recorded rank at the *first* turn the
-target enters the ten, a better position on a later turn cannot rescue it. The remaining
-25 sessions fail for a different reason, which section 5 covers.
+Those 42 changed what we worked on. BM25 had already retrieved the product, so no better
+query would help; the position it arrived in was the problem. The evaluator locks the
+recorded rank at the first turn the target enters the ten, so improving the list afterwards
+recovers nothing. A different failure accounts for the 25 sessions that never hit at all.
 
 ## 4. Reordering the scored ten by review count
 
-Sorting only those ten by `rating_number` leaves hit rate untouched at 0.875 and lifts MRR
-from 0.540 to 0.716. On the 42 buried hits, MRR moves from 0.145 to 0.846. The
-TechnicalScore goes from 0.750401 to 0.803243.
+Sorting those ten by `rating_number` holds hit rate at 0.875 and lifts MRR from 0.540 to
+0.716, taking TechnicalScore from 0.750401 to 0.803243. On the 42 buried hits alone, MRR
+moves from 0.145 to 0.846.
 
-Sorting a wider window fails. Taking the BM25 top 400, ordering that by popularity, and
-then cutting to ten drops the sessions we had already solved from 102 to 74, so we
-rejected it ([`results/pop_window400.json`](results/pop_window400.json)). Popularity works
-as a tiebreak inside a set the retrieval has already narrowed, and stops working as a
-retrieval signal in its own right.
+Sorting a wider window instead loses ground. Ordering the BM25 top 400 by popularity and
+then cutting to ten drops sessions we had already solved from 102 to 74, so we rejected it
+([`results/pop_window400.json`](results/pop_window400.json)). Popularity works as a
+tiebreak within a set that retrieval has already narrowed, and fails as a retrieval signal
+on its own.
 
-We label the gain rather than claim it. Amazon targets sampled leave-last-out skew
-popular, so this may be measuring the evaluation set rather than the shopper. Cañamares
-and Castells set out when popularity is real signal and when it is experimental artifact
-in *Should I Follow the Crowd?* (SIGIR 2018, best paper).
+We report that gain without claiming it as a modelling result. Amazon targets sampled
+leave-last-out skew popular, so the prior may be measuring how the evaluation set was built
+rather than how shoppers behave. Cañamares and Castells set out when popularity is genuine
+signal and when it is an artifact of the test collection, in *Should I Follow the Crowd?*
+(SIGIR 2018).
 
-## 5. The opening line names the category, free
+## 5. The opening line already names the category
 
-Every session opens with `I'm looking for {category}`, and the final-evaluation FAQ froze
-those templates, so no paraphrase will break the pattern. Pulling products in that
-category to the front of the BM25 top 400, then cutting to ten, then applying popularity,
-raises Hit@10 from 0.875 to 0.915. It gains eight sessions and loses none.
+Every session begins with `I'm looking for {category}`, and the final-evaluation FAQ froze
+those templates, so no paraphrase will break the pattern. Moving products in that category
+to the front of the BM25 top 400, then cutting to ten, then applying popularity, raises
+Hit@10 from 0.875 to 0.915. Eight sessions convert and none are lost.
 
 That is the shipped agent, at **0.842183**.
 
-We also tested withholding a badly-ranked early hit to land a better-ranked later one. The
-scoring arithmetic says that can pay, because rank is locked at the first turn the target
-appears. After popularity it cannot: only three early bad hits remain, worth about 0.003. We
-did not ship it.
+We also tested withholding a badly ranked early hit to land a better ranked later one. The
+scoring arithmetic allows it, because rank is locked at first appearance. After popularity
+it no longer pays: three early bad hits remain, worth about 0.003, so we did not ship it.
 
 ---
 
-## The result
+## Result
 
 Unmodified official evaluator, 200 public sessions, run twice with identical output.
 
@@ -124,5 +120,6 @@ Unmodified official evaluator, 200 public sessions, run twice with identical out
 python3 -m evaluator.local_evaluator
 ```
 
-The idea is not this number. The number is what we do because the evaluator cannot see
-the idea.
+Seventeen sessions still miss. In those the listing text the shopper quotes is not unique
+to one product: a belt described as leather, 100% leather, imported, buckle closure matches
+thousands of belts, and no ordering recovers a detail the shopper never gave.
